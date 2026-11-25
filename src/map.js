@@ -1,0 +1,162 @@
+import maplibregl from 'maplibre-gl';
+import { CENTER, DEFAULT_ZOOM, LAYERS, layerById } from './config.js';
+
+// ---- Base map style -------------------------------------------------
+// MapLibre needs a "style". We use OpenFreeMap's "positron" style: a clean,
+// light vector basemap built from OpenStreetMap data. It is genuinely free,
+// needs NO API key and NO sign-up, which fits this project's rules. Its light
+// palette also matches our #FBFAF7 look. (We previously tried CARTO's raster
+// tiles but they now return an "API KEY REQUIRED" placeholder, so we switched.)
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+
+export function createMap(container) {
+  const map = new maplibregl.Map({
+    container,
+    style: STYLE_URL,
+    center: CENTER,
+    zoom: DEFAULT_ZOOM,
+    attributionControl: {
+      compact: false,
+      customAttribution:
+        '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>'
+    }
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  map.addControl(
+    new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }),
+    'top-right'
+  );
+  map.keyboard.enable();
+  return map;
+}
+
+// Add (or replace) a layer's data on the map as a circle layer.
+export function setLayerData(map, layerId, featureCollection) {
+  const def = layerById[layerId];
+  const srcId = `src-${layerId}`;
+  const circleId = `lyr-${layerId}`;
+
+  if (map.getSource(srcId)) {
+    map.getSource(srcId).setData(featureCollection);
+    return;
+  }
+
+  map.addSource(srcId, { type: 'geojson', data: featureCollection });
+  map.addLayer({
+    id: circleId,
+    type: 'circle',
+    source: srcId,
+    paint: {
+      'circle-color': def.color,
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 3.2, 14, 6, 16, 9],
+      'circle-stroke-width': 1.5,
+      'circle-stroke-color': '#ffffff',
+      'circle-opacity': 0.92
+    }
+  });
+
+  // Click a dot -> details popup.
+  map.on('click', circleId, (e) => {
+    const f = e.features[0];
+    openFeaturePopup(map, layerId, f.properties, f.geometry.coordinates);
+  });
+  map.on('mouseenter', circleId, () => (map.getCanvas().style.cursor = 'pointer'));
+  map.on('mouseleave', circleId, () => (map.getCanvas().style.cursor = ''));
+}
+
+export function setLayerVisible(map, layerId, visible) {
+  const circleId = `lyr-${layerId}`;
+  if (map.getLayer(circleId)) {
+    map.setLayoutProperty(circleId, 'visibility', visible ? 'visible' : 'none');
+  }
+}
+
+// ---- Gold destination marker ---------------------------------------
+let destMarker = null;
+export function setDestination(map, coord, label) {
+  if (destMarker) destMarker.remove();
+  const el = document.createElement('div');
+  el.setAttribute('aria-label', `Destination: ${label}`);
+  el.style.cssText =
+    'width:20px;height:20px;border-radius:50%;background:#f5b700;border:3px solid #111;box-shadow:0 2px 6px rgba(0,0,0,.4)';
+  destMarker = new maplibregl.Marker({ element: el }).setLngLat(coord).setPopup(
+    new maplibregl.Popup({ offset: 14 }).setHTML(`<div class="popup__title">${escapeHtml(label)}</div>`)
+  );
+  destMarker.addTo(map);
+}
+
+// Open a details popup for one feature (used by map clicks AND result clicks).
+export function openFeaturePopup(map, layerId, properties, coord) {
+  new maplibregl.Popup({ offset: 12, maxWidth: '280px' })
+    .setLngLat(coord)
+    .setHTML(popupHtml(layerId, properties))
+    .addTo(map);
+}
+
+// ---- Popup HTML per layer ------------------------------------------
+function popupHtml(layerId, p) {
+  const def = LAYERS.find((l) => l.id === layerId);
+  const rows = [];
+  const name = p.name || def.label;
+
+  if (layerId === 'bikes') {
+    rows.push(row('Bikes available', numOrUnknown(p.bikes)));
+    if (p.ebikes != null) rows.push(row('E-bikes', p.ebikes));
+    rows.push(row('Docks free', numOrUnknown(p.docks)));
+    if (!p.renting) rows.push(`<div class="popup__row">Not renting right now</div>`);
+  } else if (layerId === 'parking') {
+    rows.push(row('Type', p.kind || 'parking'));
+    rows.push(row('Price', p.rate ? `${p.rate}` : 'price unknown'));
+    if (p.max_hours) rows.push(row('Max stay', p.max_hours));
+    if (p.hours) rows.push(row('Metered', p.hours));
+    if (p.zone) rows.push(row('Zone', p.zone));
+    if (p.rate && p.source === 'WPRDC') rows.push(`<div class="popup__row">Rate as of 2019</div>`);
+  } else if (layerId === 'bathrooms') {
+    if (p.fee) rows.push(row('Fee', p.fee === 'yes' ? 'yes' : 'no'));
+    if (p.wheelchair) rows.push(row('Wheelchair', p.wheelchair));
+    if (p.opening_hours) rows.push(row('Hours', p.opening_hours));
+    if (p.changing_table) rows.push(row('Changing table', p.changing_table));
+  } else if (layerId === 'water') {
+    rows.push(`<div class="popup__row">Public drinking water</div>`);
+    if (p.operational) rows.push(row('Status', p.operational));
+  } else if (layerId === 'ev') {
+    if (p.operator) rows.push(row('Operator', p.operator));
+    if (p.capacity) rows.push(row('Points', p.capacity));
+    if (p.socket) rows.push(row('Socket', p.socket));
+    if (p.fee) rows.push(row('Fee', p.fee));
+  }
+
+  const src = sourceLine(p);
+  return `
+    <div class="popup__title">${escapeHtml(name)}</div>
+    ${rows.join('')}
+    ${src}
+  `;
+}
+
+function sourceLine(p) {
+  const label = p.source || 'OpenStreetMap';
+  const live = p.layer === 'bikes';
+  const url =
+    p.source_url ||
+    (label.includes('Refuge')
+      ? 'https://www.refugerestrooms.org/'
+      : label === 'WPRDC'
+      ? 'https://data.wprdc.org/'
+      : label === 'POGOH GBFS v2'
+      ? 'https://pogoh.com/'
+      : 'https://www.openstreetmap.org/');
+  return `<div class="popup__src">Source: <a href="${url}" target="_blank" rel="noopener">${escapeHtml(
+    label
+  )}</a>${live ? ' · live' : ''}</div>`;
+}
+
+function row(label, value) {
+  return `<div class="popup__row"><b>${label}:</b> ${escapeHtml(String(value))}</div>`;
+}
+function numOrUnknown(n) {
+  return n === null || n === undefined ? 'unknown' : n;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}

@@ -1,0 +1,34 @@
+{
+  "generated_at": "2026-11-25T19:26:27.328Z",
+  "sources": {
+    "bathrooms": {
+      "fetched_at": "2026-11-25T19:26:27.328Z",
+      "count": 292,
+      "note": "OSM toilets: 76, Refuge: 296"
+    },
+    "parking": {
+      "fetched_at": "2026-11-25T19:26:27.328Z",
+      "count": 3628,
+      "note": "OSM lots/garages: 2616, WPRDC meters: 1022; meter rates as of 2019"
+    },
+    "water": {
+      "fetched_at": "2026-11-25T19:26:27.328Z",
+      "count": 56,
+      "note": "OpenStreetMap drinking_water"
+    },
+    "ev": {
+      "fetched_at": "2026-11-25T19:26:27.328Z",
+      "count": 14,
+      "note": "OpenStreetMap charging_station"
+    },
+    "bikes": {
+      "live": true
+    },
+    "basemap": {
+      "note": "CARTO Positron raster tiles"
+    },
+    "geocoder": {
+      "note": "Nominatim, used live, 1 req/sec"
+    }
+  }
+}

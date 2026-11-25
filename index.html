@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <meta name="description" content="One map of Pittsburgh with parking, bathrooms, bike share, water fountains and EV chargers around any destination." />
+    <title>Pittsburgh Everything Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="map" role="application" aria-label="Map of Pittsburgh"></div>
+
+    <aside id="panel" class="panel" aria-label="Controls and results">
+      <div class="panel__handle" aria-hidden="true"></div>
+
+      <header class="brand">
+        <h1>Pittsburgh <span>Everything</span> Map</h1>
+        <p class="tagline">Parking, bathrooms, bikes, water &amp; EV charging around any destination.</p>
+      </header>
+
+      <form id="search-form" role="search">
+        <label class="sr-only" for="search">Search for a place or a need</label>
+        <div class="search-row">
+          <input
+            id="search"
+            name="search"
+            type="search"
+            autocomplete="off"
+            placeholder="Try: parking near PNC Park"
+          />
+          <button type="submit" class="btn btn--go">Go</button>
+        </div>
+        <div class="chips" id="example-chips" aria-label="Example searches">
+          <button type="button" class="chip" data-q="parking near PNC Park">parking near PNC Park</button>
+          <button type="button" class="chip" data-q="bathroom near Market Square">bathroom near Market Square</button>
+          <button type="button" class="chip" data-q="bike near Strip District">bike near Strip District</button>
+          <button type="button" class="chip" data-q="cheapest parking near Downtown">cheapest parking</button>
+        </div>
+      </form>
+
+      <section class="layers" aria-label="Map layers">
+        <h2>Layers</h2>
+        <div id="legend" class="legend"></div>
+      </section>
+
+      <section class="results" aria-live="polite">
+        <h2 id="results-title">Nearest around you</h2>
+        <div id="results" class="results__list"></div>
+      </section>
+
+      <footer class="panel__footer">
+        <button type="button" id="sources-btn" class="btn btn--ghost">Data sources &amp; freshness</button>
+      </footer>
+    </aside>
+
+    <dialog id="sources-dialog" class="dialog" aria-label="Data sources">
+      <div class="dialog__head">
+        <h2>Where this data comes from</h2>
+        <button type="button" class="btn btn--close" data-close aria-label="Close">&times;</button>
+      </div>
+      <div id="sources-body" class="dialog__body"></div>
+      <p class="dialog__note">
+        Live data is labelled "live". Everything else is a snapshot refreshed weekly and may be out of date.
+      </p>
+    </dialog>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
