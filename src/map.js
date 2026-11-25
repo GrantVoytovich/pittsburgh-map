@@ -15,11 +15,11 @@ export function createMap(container) {
     style: STYLE_URL,
     center: CENTER,
     zoom: DEFAULT_ZOOM,
-    attributionControl: {
-      compact: false,
-      customAttribution:
-        '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>'
-    }
+    // `compact: true` renders attribution as a small "ⓘ" button that expands on
+    // click, so the credit line never runs under the side panel. The OpenFreeMap
+    // style already credits OpenStreetMap, OpenFreeMap and OpenMapTiles, so we
+    // don't add our own (that was duplicating the credit and lengthening the bar).
+    attributionControl: { compact: true }
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
   map.addControl(

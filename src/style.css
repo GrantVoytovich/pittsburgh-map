@@ -240,6 +240,8 @@ h1, h2, h3 { font-family: 'Space Grotesk', 'Inter', sans-serif; margin: 0; }
   .tagline { display: none; }
   #toast { left: 50%; transform: translateX(-50%) translateY(6px); bottom: calc(74vh + 14px); }
   #toast.show { transform: translateX(-50%) translateY(0); }
+  /* Keep the attribution button visible above the bottom sheet on phones. */
+  .maplibregl-ctrl-bottom-right { bottom: calc(74vh + 6px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
