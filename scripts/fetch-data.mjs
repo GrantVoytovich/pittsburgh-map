@@ -29,6 +29,7 @@ async function main() {
   const parkingOsm = await overpass('amenity=parking', 'parking');
   const water = await overpass('amenity=drinking_water', 'water');
   const ev = await overpass('amenity=charging_station', 'charging');
+  const fuel = await overpass('amenity=fuel', 'fuel');
 
   const refuge = await fetchRefuge();
   const meters = await fetchMeters();
@@ -58,6 +59,11 @@ async function main() {
   const evF = ev.map(toEv).filter(inBbox);
   await save('ev.geojson', evF);
   meta.sources.ev = stamp(evF.length, 'OpenStreetMap charging_station');
+
+  // --- Gas stations ---
+  const gasF = fuel.map(toGas).filter(inBbox);
+  await save('gas.geojson', gasF);
+  meta.sources.gas = stamp(gasF.length, 'OpenStreetMap fuel');
 
   // Non-snapshot sources, recorded for the dialog.
   meta.sources.bikes = { live: true };
@@ -196,6 +202,14 @@ function toWater(o) {
   return feature(o.lon, o.lat, {
     layer: 'water', name: o.tags.name || 'Drinking water', source: 'OpenStreetMap', osm_id: o.id,
     operational: o.tags['disused'] ? 'disused' : undefined
+  });
+}
+function toGas(o) {
+  const t = o.tags;
+  return feature(o.lon, o.lat, {
+    layer: 'gas', name: t.name || t.brand || 'Gas station', source: 'OpenStreetMap', osm_id: o.id,
+    brand: t.brand || t.operator, opening_hours: t.opening_hours,
+    fuels: [t['fuel:diesel'] === 'yes' ? 'diesel' : null, t['fuel:e85'] === 'yes' ? 'E85' : null].filter(Boolean).join(', ') || undefined
   });
 }
 function toEv(o) {

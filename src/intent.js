@@ -7,7 +7,8 @@ const LAYER_WORDS = {
   bathrooms: ['bathroom', 'restroom', 'toilet', 'washroom', 'loo'],
   bikes: ['bike', 'bikes', 'pogoh', 'bike share', 'dock'],
   water: ['water', 'fountain', 'drinking water', 'refill'],
-  ev: ['ev', 'charger', 'charging', 'charge my car', 'ev charger']
+  ev: ['ev', 'charger', 'charging', 'charge my car', 'ev charger'],
+  gas: ['gas', 'fuel', 'gas station', 'petrol', 'diesel', 'fill up']
 };
 
 const CHEAP_WORDS = ['cheapest', 'cheap', 'free', 'lowest', 'affordable'];

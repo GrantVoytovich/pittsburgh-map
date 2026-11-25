@@ -8,6 +8,7 @@ import { parseQuery } from './intent.js';
 import { resolvePlace } from './search.js';
 import { renderResults } from './results.js';
 import { SOURCES } from './sources.js';
+import { ICONS, layerBadge } from './icons.js';
 
 const app = {
   map: null,
@@ -23,49 +24,47 @@ async function boot() {
   app.map = createMap('map');
   LAYERS.forEach((l) => (app.visible[l.id] = true));
 
+  injectIcons();
   buildLegend();
   wireSearch();
   wireSourcesDialog();
 
-  app.map.on('load', async () => {
-    // Snapshot layers load from static files; the live bikes layer from our API.
-    await Promise.all(LAYERS.map((l) => (l.live ? loadLive(l) : loadSnapshot(l))));
-    loadMeta();
-    showNearest(app.lastOrigin.coord, app.lastOrigin.name, LAYERS.map((l) => l.id), { perLayer: 4 });
-    // Keep live bikes fresh.
-    setInterval(() => LAYERS.filter((l) => l.live).forEach(loadLive), 60000);
+  // Load the DATA immediately, independent of the basemap. This way the search
+  // box and results panel work even if the map tiles are slow or unavailable.
+  await Promise.all(LAYERS.map(fetchLayerData));
+  loadMeta();
+  showNearest(app.lastOrigin.coord, app.lastOrigin.name, LAYERS.map((l) => l.id), { perLayer: 4 });
+
+  // Draw the markers once the map style is ready (MapLibre needs the style
+  // loaded before you can add layers to it), then keep live bikes fresh.
+  whenStyleReady(app.map, () => {
+    for (const l of LAYERS) if (app.data[l.id]) setLayerData(app.map, l.id, app.data[l.id]);
+    setInterval(() => LAYERS.filter((l) => l.live).forEach(fetchLayerData), 60000);
   });
 }
 
-// ---- Data loading ---------------------------------------------------
-async function loadSnapshot(layer) {
-  try {
-    const res = await fetch(`/data/${layer.file}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const fc = await res.json();
-    app.data[layer.id] = fc;
-    setLayerData(app.map, layer.id, fc);
-    updateLegendCount(layer.id, fc.features.length);
-  } catch (err) {
-    console.warn(`Could not load ${layer.file}:`, err);
-    app.data[layer.id] = emptyFC();
-    updateLegendCount(layer.id, '!');
-  }
+function whenStyleReady(map, cb) {
+  if (map.isStyleLoaded()) cb();
+  else map.on('load', cb);
 }
 
-async function loadLive(layer) {
+// ---- Data loading (no map dependency) -------------------------------
+// Snapshot layers come from static files in /data; the live bikes layer from
+// our /api/bikes function. We store the data and update the legend count here;
+// drawing on the map happens separately once the style is ready.
+async function fetchLayerData(layer) {
   try {
-    const res = await fetch(layer.endpoint);
+    const res = await fetch(layer.live ? layer.endpoint : `/data/${layer.file}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const fc = await res.json();
     app.data[layer.id] = fc;
-    setLayerData(app.map, layer.id, fc);
     updateLegendCount(layer.id, fc.features.length);
+    if (app.map.isStyleLoaded()) setLayerData(app.map, layer.id, fc);
   } catch (err) {
-    console.warn('Live bikes failed:', err);
-    app.data[layer.id] = emptyFC();
+    console.warn(`Could not load ${layer.id}:`, err);
+    app.data[layer.id] = app.data[layer.id] || emptyFC();
     updateLegendCount(layer.id, '!');
-    toast('Live bike data is unavailable right now.');
+    if (layer.live) toast('Live bike data is unavailable right now.');
   }
 }
 
@@ -78,6 +77,13 @@ async function loadMeta() {
   }
 }
 
+// Put inline SVG icons into the static chrome (brand mark, search, sources).
+function injectIcons() {
+  document.getElementById('brand-mark').innerHTML = ICONS.pin;
+  document.getElementById('search-icon').innerHTML = ICONS.search;
+  document.getElementById('sources-icon').innerHTML = ICONS.info;
+}
+
 // ---- Legend ---------------------------------------------------------
 function buildLegend() {
   const legend = document.getElementById('legend');
@@ -87,11 +93,13 @@ function buildLegend() {
     btn.className = 'legend__item';
     btn.id = `legend-${layer.id}`;
     btn.setAttribute('aria-pressed', 'true');
+    btn.setAttribute('aria-label', `${layer.label} layer`);
     btn.innerHTML = `
-      <span class="legend__dot" style="background:${layer.color}"></span>
-      <span class="legend__label">${layer.label}</span>
-      ${layer.live ? '<span class="legend__live">live</span>' : ''}
-      <span class="legend__count" data-count>…</span>
+      ${layerBadge(layer, 30)}
+      <span class="legend__body">
+        <span class="legend__label">${layer.label}${layer.live ? '<span class="legend__live">live</span>' : ''}</span>
+        <span class="legend__count" data-count>…</span>
+      </span>
     `;
     btn.addEventListener('click', () => toggleLayer(layer.id));
     legend.appendChild(btn);

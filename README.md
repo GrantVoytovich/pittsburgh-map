@@ -15,12 +15,13 @@ One map of Pittsburgh with **everything you need around a destination** — not 
 ## What it does
 
 - **Full-screen map** of Pittsburgh (MapLibre GL + free, keyless OpenFreeMap/OpenStreetMap tiles).
-- **Five toggleable layers**, each a distinct colour-blind-safe colour, with a legend and live counts:
+- **Six toggleable layers**, each a distinct colour-blind-safe colour **and icon**, with a legend and live counts:
   - 🔵 **Bike share** — POGOH stations with **live** bikes & docks available.
   - 🟢 **Public bathrooms** — OpenStreetMap toilets + community-submitted Refuge Restrooms.
   - 🟠 **Parking** — garages & lots (OpenStreetMap) + on-street meters with zones & rates (WPRDC).
   - 🔵 **Water fountains** — OpenStreetMap drinking-water points.
   - 🟣 **EV charging** — OpenStreetMap charging stations.
+  - 🟡 **Gas stations** — OpenStreetMap fuel stations (brand where known; no live prices).
 - **Smart search** with no AI and no paid API: a built-in list of Pittsburgh landmarks, a rule-based understanding of requests ("parking", "bathroom", "near X", "cheapest"), and a free Nominatim fallback for anything else.
 - **Results panel** listing the nearest options per layer with walking distance, and parking price where known (`price unknown` where not).
 - **Click any marker** for details and its data source.
@@ -36,6 +37,7 @@ One map of Pittsburgh with **everything you need around a destination** — not 
 | Parking | [OpenStreetMap](https://overpass-api.de/) + [WPRDC meters](https://data.wprdc.org/dataset/parking-meters-and-payment-points) | No | Weekly snapshot — **meter rates are as of 2019** |
 | Water fountains | [OpenStreetMap](https://overpass-api.de/) | No | Weekly snapshot |
 | EV charging | [OpenStreetMap](https://overpass-api.de/) | No | Weekly snapshot |
+| Gas stations | [OpenStreetMap](https://overpass-api.de/) | No | Weekly snapshot (no live prices) |
 | Base map | [OpenFreeMap Positron](https://openfreemap.org/) (OSM data) | No | — |
 | Place search | [Nominatim](https://nominatim.openstreetmap.org/) | No | Live, ≤1 req/sec |
 
@@ -68,6 +70,8 @@ pittsburgh-map/
 
 - **Slow-changing data** (bathrooms, parking, fountains, EV) is fetched **once** by `scripts/fetch-data.mjs` into static GeoJSON files in `public/data/`. The map loads these instantly and we don't hammer the free APIs on every visit. A GitHub Action re-runs the script **weekly** and commits any changes.
 - **Live data** (POGOH bikes) is fetched **in the browser** on each visit. POGOH's feed doesn't allow direct browser calls (CORS), so a tiny **Vercel serverless function** at `/api/bikes` proxies it. The same endpoint is emulated in the Vite dev server, so local and production behave identically.
+
+Data loading is **decoupled from the base map**: the layer data and search work even if the map tiles are slow to load, and markers are drawn as soon as the map style is ready. A couple of free sources (Overpass especially) return 502s under load, so the fetch script **rotates across mirrors and retries**.
 
 ## Run it locally
 

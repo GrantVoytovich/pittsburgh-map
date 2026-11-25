@@ -1,15 +1,18 @@
 // Builds the "nearest options" list in the side panel. Each result is a real
-// <button> so it is keyboard-focusable; clicking it flies the map to that spot.
+// <button> so it is keyboard-focusable; clicking it flies the map to that spot
+// and opens its popup.
 
 import { layerById } from './config.js';
 import { walkText } from './geo.js';
+import { layerBadge } from './icons.js';
 
 export function renderResults(container, groups, onPick) {
   container.innerHTML = '';
 
   const hasAny = groups.some((g) => g.items.length);
   if (!hasAny) {
-    container.innerHTML = '<p class="results__empty">No results in range. Try turning on more layers or searching a different place.</p>';
+    container.innerHTML =
+      '<p class="results__empty">Nothing in range for the active layers. Try turning on more layers, or search a different place.</p>';
     return;
   }
 
@@ -17,8 +20,8 @@ export function renderResults(container, groups, onPick) {
     if (!group.items.length) continue;
     const def = layerById[group.layer];
 
-    const heading = document.createElement('h3');
-    heading.style.cssText = 'font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 0 4px';
+    const heading = document.createElement('div');
+    heading.className = 'results__group-head';
     heading.textContent = def.label;
     container.appendChild(heading);
 
@@ -27,17 +30,19 @@ export function renderResults(container, groups, onPick) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'result';
-      btn.style.borderLeftColor = def.color;
 
       const name = p.name || def.label;
       const extra = metaFor(group.layer, p);
 
       btn.innerHTML = `
-        <span class="result__top">
-          <span class="result__name"></span>
-          <span class="result__dist">${walkText(meters)}</span>
+        ${layerBadge(def, 34)}
+        <span class="result__body">
+          <span class="result__top">
+            <span class="result__name"></span>
+            <span class="result__dist">${walkText(meters)}</span>
+          </span>
+          ${extra ? `<span class="result__meta">${extra}</span>` : ''}
         </span>
-        ${extra ? `<span class="result__meta">${extra}</span>` : ''}
       `;
       btn.querySelector('.result__name').textContent = name;
       btn.addEventListener('click', () => onPick(feature, group.layer));
@@ -61,8 +66,9 @@ function metaFor(layer, p) {
     const bits = [];
     if (p.fee) bits.push(p.fee === 'yes' ? 'fee' : 'free');
     if (p.wheelchair === 'yes') bits.push('wheelchair');
-    return bits.join(' · ');
+    return bits.join(' · ') || esc(p.source || '');
   }
+  if (layer === 'gas') return esc(p.brand || '');
   if (layer === 'ev') return p.operator ? esc(p.operator) : '';
   return '';
 }

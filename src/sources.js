@@ -40,6 +40,13 @@ export const SOURCES = [
     license: 'OpenStreetMap ODbL'
   },
   {
+    key: 'gas',
+    name: 'Gas stations',
+    url: 'https://overpass-api.de/',
+    desc: 'OpenStreetMap fuel stations (amenity=fuel) via Overpass. Brand where known; this source does not include live gas prices.',
+    license: 'OpenStreetMap ODbL'
+  },
+  {
     key: 'basemap',
     name: 'Base map tiles',
     url: 'https://openfreemap.org/',

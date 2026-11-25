@@ -1,11 +1,11 @@
 import maplibregl from 'maplibre-gl';
-import { CENTER, DEFAULT_ZOOM, LAYERS, layerById } from './config.js';
+import { CENTER, DEFAULT_ZOOM, layerById } from './config.js';
+import { layerBadge } from './icons.js';
 
 // ---- Base map style -------------------------------------------------
-// MapLibre needs a "style". We use OpenFreeMap's "positron" style: a clean,
-// light vector basemap built from OpenStreetMap data. It is genuinely free,
-// needs NO API key and NO sign-up, which fits this project's rules. Its light
-// palette also matches our #FBFAF7 look. (We previously tried CARTO's raster
+// We use OpenFreeMap's "positron" style: a clean, light vector basemap built
+// from OpenStreetMap data. It is genuinely free, needs NO API key and NO
+// sign-up, which fits this project's rules. (We previously tried CARTO's raster
 // tiles but they now return an "API KEY REQUIRED" placeholder, so we switched.)
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 
@@ -30,11 +30,13 @@ export function createMap(container) {
   return map;
 }
 
-// Add (or replace) a layer's data on the map as a circle layer.
+// Add (or replace) a layer's data. Each layer draws as a soft "glow" circle
+// under a crisp white-ringed dot, which reads as a modern, legible pin cloud.
 export function setLayerData(map, layerId, featureCollection) {
   const def = layerById[layerId];
   const srcId = `src-${layerId}`;
-  const circleId = `lyr-${layerId}`;
+  const glowId = `glow-${layerId}`;
+  const dotId = `lyr-${layerId}`;
 
   if (map.getSource(srcId)) {
     map.getSource(srcId).setData(featureCollection);
@@ -42,52 +44,64 @@ export function setLayerData(map, layerId, featureCollection) {
   }
 
   map.addSource(srcId, { type: 'geojson', data: featureCollection });
+
   map.addLayer({
-    id: circleId,
+    id: glowId,
     type: 'circle',
     source: srcId,
     paint: {
       'circle-color': def.color,
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 3.2, 14, 6, 16, 9],
-      'circle-stroke-width': 1.5,
-      'circle-stroke-color': '#ffffff',
-      'circle-opacity': 0.92
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 5, 14, 11, 16, 16],
+      'circle-blur': 1,
+      'circle-opacity': 0.22
     }
   });
 
-  // Click a dot -> details popup.
-  map.on('click', circleId, (e) => {
+  map.addLayer({
+    id: dotId,
+    type: 'circle',
+    source: srcId,
+    paint: {
+      'circle-color': def.color,
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 3.4, 14, 6, 16, 8.5],
+      'circle-stroke-width': 1.6,
+      'circle-stroke-color': '#ffffff',
+      'circle-opacity': 0.96
+    }
+  });
+
+  map.on('click', dotId, (e) => {
     const f = e.features[0];
     openFeaturePopup(map, layerId, f.properties, f.geometry.coordinates);
   });
-  map.on('mouseenter', circleId, () => (map.getCanvas().style.cursor = 'pointer'));
-  map.on('mouseleave', circleId, () => (map.getCanvas().style.cursor = ''));
+  map.on('mouseenter', dotId, () => (map.getCanvas().style.cursor = 'pointer'));
+  map.on('mouseleave', dotId, () => (map.getCanvas().style.cursor = ''));
 }
 
 export function setLayerVisible(map, layerId, visible) {
-  const circleId = `lyr-${layerId}`;
-  if (map.getLayer(circleId)) {
-    map.setLayoutProperty(circleId, 'visibility', visible ? 'visible' : 'none');
+  const v = visible ? 'visible' : 'none';
+  for (const id of [`glow-${layerId}`, `lyr-${layerId}`]) {
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v);
   }
 }
 
-// ---- Gold destination marker ---------------------------------------
+// ---- Gold destination marker with a gentle pulse -------------------
 let destMarker = null;
 export function setDestination(map, coord, label) {
   if (destMarker) destMarker.remove();
   const el = document.createElement('div');
+  el.className = 'dest-marker';
   el.setAttribute('aria-label', `Destination: ${label}`);
-  el.style.cssText =
-    'width:20px;height:20px;border-radius:50%;background:#f5b700;border:3px solid #111;box-shadow:0 2px 6px rgba(0,0,0,.4)';
-  destMarker = new maplibregl.Marker({ element: el }).setLngLat(coord).setPopup(
-    new maplibregl.Popup({ offset: 14 }).setHTML(`<div class="popup__title">${escapeHtml(label)}</div>`)
-  );
+  el.innerHTML = '<span class="dest-marker__pulse"></span><span class="dest-marker__dot"></span>';
+  destMarker = new maplibregl.Marker({ element: el })
+    .setLngLat(coord)
+    .setPopup(new maplibregl.Popup({ offset: 16 }).setHTML(`<div class="popup__title">${escapeHtml(label)}</div>`));
   destMarker.addTo(map);
 }
 
 // Open a details popup for one feature (used by map clicks AND result clicks).
 export function openFeaturePopup(map, layerId, properties, coord) {
-  new maplibregl.Popup({ offset: 12, maxWidth: '280px' })
+  new maplibregl.Popup({ offset: 14, maxWidth: '280px' })
     .setLngLat(coord)
     .setHTML(popupHtml(layerId, properties))
     .addTo(map);
@@ -95,7 +109,7 @@ export function openFeaturePopup(map, layerId, properties, coord) {
 
 // ---- Popup HTML per layer ------------------------------------------
 function popupHtml(layerId, p) {
-  const def = LAYERS.find((l) => l.id === layerId);
+  const def = layerById[layerId];
   const rows = [];
   const name = p.name || def.label;
 
@@ -124,13 +138,17 @@ function popupHtml(layerId, p) {
     if (p.capacity) rows.push(row('Points', p.capacity));
     if (p.socket) rows.push(row('Socket', p.socket));
     if (p.fee) rows.push(row('Fee', p.fee));
+  } else if (layerId === 'gas') {
+    if (p.brand) rows.push(row('Brand', p.brand));
+    if (p.fuels) rows.push(row('Fuels', p.fuels));
+    if (p.opening_hours) rows.push(row('Hours', p.opening_hours));
+    rows.push(`<div class="popup__row">Live gas prices not available from this source</div>`);
   }
 
-  const src = sourceLine(p);
   return `
-    <div class="popup__title">${escapeHtml(name)}</div>
+    <div class="popup__head">${layerBadge(def, 26)}<div class="popup__title">${escapeHtml(name)}</div></div>
     ${rows.join('')}
-    ${src}
+    ${sourceLine(p)}
   `;
 }
 
@@ -146,9 +164,9 @@ function sourceLine(p) {
       : label === 'POGOH GBFS v2'
       ? 'https://pogoh.com/'
       : 'https://www.openstreetmap.org/');
-  return `<div class="popup__src">Source: <a href="${url}" target="_blank" rel="noopener">${escapeHtml(
-    label
-  )}</a>${live ? ' · live' : ''}</div>`;
+  return `<div class="popup__src">Source: <a href="${url}" target="_blank" rel="noopener">${escapeHtml(label)}</a>${
+    live ? ' · <span class="dot">live</span>' : ''
+  }</div>`;
 }
 
 function row(label, value) {

@@ -3,12 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <meta name="description" content="One map of Pittsburgh with parking, bathrooms, bike share, water fountains and EV chargers around any destination." />
+    <meta name="description" content="One map of Pittsburgh with parking, bathrooms, bike share, water fountains, EV chargers and gas around any destination." />
+    <meta name="theme-color" content="#fbfaf7" />
     <title>Pittsburgh Everything Map</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -19,42 +20,49 @@
       <div class="panel__handle" aria-hidden="true"></div>
 
       <header class="brand">
-        <h1>Pittsburgh <span>Everything</span> Map</h1>
-        <p class="tagline">Parking, bathrooms, bikes, water &amp; EV charging around any destination.</p>
+        <span class="brand__mark" id="brand-mark" aria-hidden="true"></span>
+        <div class="brand__text">
+          <h1>Pittsburgh <em>Everything</em> Map</h1>
+          <p class="tagline">Everything you need around any destination.</p>
+        </div>
       </header>
 
-      <form id="search-form" role="search">
+      <form id="search-form" role="search" class="search">
         <label class="sr-only" for="search">Search for a place or a need</label>
-        <div class="search-row">
-          <input
-            id="search"
-            name="search"
-            type="search"
-            autocomplete="off"
-            placeholder="Try: parking near PNC Park"
-          />
+        <div class="search__field">
+          <span class="search__icon" id="search-icon" aria-hidden="true"></span>
+          <input id="search" name="search" type="search" autocomplete="off" placeholder="parking near PNC Park" />
           <button type="submit" class="btn btn--go">Go</button>
         </div>
         <div class="chips" id="example-chips" aria-label="Example searches">
-          <button type="button" class="chip" data-q="parking near PNC Park">parking near PNC Park</button>
-          <button type="button" class="chip" data-q="bathroom near Market Square">bathroom near Market Square</button>
-          <button type="button" class="chip" data-q="bike near Strip District">bike near Strip District</button>
+          <button type="button" class="chip" data-q="parking near PNC Park">parking · PNC Park</button>
+          <button type="button" class="chip" data-q="bathroom near Market Square">bathroom · Market Square</button>
+          <button type="button" class="chip" data-q="bike near Strip District">bike · Strip District</button>
           <button type="button" class="chip" data-q="cheapest parking near Downtown">cheapest parking</button>
+          <button type="button" class="chip" data-q="gas near Oakland">gas · Oakland</button>
         </div>
       </form>
 
-      <section class="layers" aria-label="Map layers">
-        <h2>Layers</h2>
+      <section class="section layers" aria-label="Map layers">
+        <div class="section__head">
+          <h2>Layers</h2>
+          <span class="section__hint">tap to toggle</span>
+        </div>
         <div id="legend" class="legend"></div>
       </section>
 
-      <section class="results" aria-live="polite">
-        <h2 id="results-title">Nearest around you</h2>
+      <section class="section results" aria-live="polite">
+        <div class="section__head">
+          <h2 id="results-title">Nearest to Downtown</h2>
+        </div>
         <div id="results" class="results__list"></div>
       </section>
 
       <footer class="panel__footer">
-        <button type="button" id="sources-btn" class="btn btn--ghost">Data sources &amp; freshness</button>
+        <button type="button" id="sources-btn" class="btn btn--ghost">
+          <span class="btn__icon" id="sources-icon" aria-hidden="true"></span>
+          Data sources &amp; freshness
+        </button>
       </footer>
     </aside>
 
