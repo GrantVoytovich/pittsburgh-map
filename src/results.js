@@ -1,6 +1,10 @@
 // Builds the "nearest options" list in the side panel. Each result is a real
 // <button> so it is keyboard-focusable; clicking it flies the map to that spot
 // and opens its popup.
+//
+// A "group" is { layer, label, items, note? }. An "item" is
+// { feature, meters, title?, metaHtml? } — title/metaHtml let callers (e.g. the
+// parking grouping) override the default name + meta line.
 
 import { layerById } from './config.js';
 import { walkText } from './geo.js';
@@ -22,17 +26,18 @@ export function renderResults(container, groups, onPick) {
 
     const heading = document.createElement('div');
     heading.className = 'results__group-head';
-    heading.textContent = def.label;
+    heading.textContent = group.label || def.label;
     container.appendChild(heading);
 
-    for (const { feature, meters } of group.items) {
+    for (const item of group.items) {
+      const { feature, meters } = item;
       const p = feature.properties;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'result';
 
-      const name = p.name || def.label;
-      const extra = metaFor(group.layer, p);
+      const name = item.title || p.name || def.label;
+      const extra = item.metaHtml != null ? item.metaHtml : metaFor(group.layer, p);
 
       btn.innerHTML = `
         ${layerBadge(def, 34)}
@@ -47,6 +52,13 @@ export function renderResults(container, groups, onPick) {
       btn.querySelector('.result__name').textContent = name;
       btn.addEventListener('click', () => onPick(feature, group.layer));
       container.appendChild(btn);
+    }
+
+    if (group.note) {
+      const note = document.createElement('p');
+      note.className = 'results__note';
+      note.textContent = group.note;
+      container.appendChild(note);
     }
   }
 }
@@ -73,6 +85,6 @@ function metaFor(layer, p) {
   return '';
 }
 
-function esc(s) {
+export function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

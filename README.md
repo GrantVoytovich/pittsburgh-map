@@ -6,15 +6,16 @@ One map of Pittsburgh with **everything you need around a destination** — not 
 
 **Live demo:** _(added after deploy)_
 
-![Screenshot of the Pittsburgh Everything Map showing parking, bathroom, bike, water and EV markers across Pittsburgh](docs/screenshot.jpg)
+![Screenshot of the Pittsburgh Everything Map showing numbered marker clusters across Pittsburgh](docs/screenshot.jpg)
 
-![Searching "parking near PNC Park" shows the nearest meters with price and a detail popup](docs/search-detail.jpg)
+![Searching "parking near PNC Park" zooms in, splits the clusters, and lists on-street meters grouped by block with their price](docs/search-detail.jpg)
 
 ---
 
 ## What it does
 
 - **Full-screen map** of Pittsburgh (MapLibre GL + free, keyless OpenFreeMap/OpenStreetMap tiles).
+- **Clustered markers**: nearby points merge into numbered clusters that split as you zoom in, so dense layers (3,600+ parking spots) stay readable instead of blanketing the city.
 - **Six toggleable layers**, each a distinct colour-blind-safe colour **and icon**, with a legend and live counts:
   - 🔵 **Bike share** — POGOH stations with **live** bikes & docks available.
   - 🟢 **Public bathrooms** — OpenStreetMap toilets + community-submitted Refuge Restrooms.
@@ -23,7 +24,7 @@ One map of Pittsburgh with **everything you need around a destination** — not 
   - 🟣 **EV charging** — OpenStreetMap charging stations.
   - 🟡 **Gas stations** — OpenStreetMap fuel stations (brand where known; no live prices).
 - **Smart search** with no AI and no paid API: a built-in list of Pittsburgh landmarks, a rule-based understanding of requests ("parking", "bathroom", "near X", "cheapest"), and a free Nominatim fallback for anything else.
-- **Results panel** listing the nearest options per layer with walking distance, and parking price where known (`price unknown` where not).
+- **Results panel** listing the nearest options per layer with walking distance. On-street meters are **grouped by block** ("W General Robinson St · 12 meters · $3/hr"), garages & lots get their own section, and near PNC Park / Acrisure Stadium / PPG Paints Arena a note flags that **event-day rates may differ**. Prices appear only where there's a source (`price unknown` otherwise).
 - **Click any marker** for details and its data source.
 - **Phone-friendly & accessible**: real buttons, keyboard support, a bottom sheet on small screens, readable contrast.
 - **A "Data sources" panel** showing where every layer comes from and when each snapshot was last refreshed. Live data is clearly labelled "live"; nothing else is claimed to be live.

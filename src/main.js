@@ -6,7 +6,7 @@ import { createMap, setLayerData, setLayerVisible, setDestination, openFeaturePo
 import { nearest, distanceMeters } from './geo.js';
 import { parseQuery } from './intent.js';
 import { resolvePlace } from './search.js';
-import { renderResults } from './results.js';
+import { renderResults, esc } from './results.js';
 import { SOURCES } from './sources.js';
 import { ICONS, layerBadge } from './icons.js';
 
@@ -123,7 +123,13 @@ function wireSearch() {
   const input = document.getElementById('search');
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    if (input.value.trim()) runSearch(input.value);
+    // If the box is empty, run the example shown as the placeholder instead of
+    // doing nothing.
+    const q = input.value.trim() || input.placeholder;
+    if (q) {
+      input.value = q;
+      runSearch(q);
+    }
   });
   document.getElementById('example-chips').addEventListener('click', (e) => {
     const q = e.target.dataset.q;
@@ -172,32 +178,88 @@ async function runSearch(raw) {
 
 // ---- Results --------------------------------------------------------
 function showNearest(origin, originName, layerIds, { perLayer = 4, cheapest = false } = {}) {
-  const groups = layerIds
-    .filter((id) => app.visible[id])
-    .map((id) => {
-      let items;
-      if (id === 'parking' && cheapest) {
-        items = cheapestParking(origin, perLayer);
-      } else {
-        items = nearest((app.data[id] || emptyFC()).features, origin, perLayer);
-      }
-      return { layer: id, items };
-    });
-
+  const groups = [];
+  for (const id of layerIds) {
+    if (!app.visible[id]) continue;
+    if (id === 'parking') {
+      groups.push(...buildParkingGroups(origin, { cheapest, note: eventDayNote(origin) }));
+    } else {
+      groups.push({
+        layer: id,
+        label: layerById[id].label,
+        items: nearest((app.data[id] || emptyFC()).features, origin, perLayer)
+      });
+    }
+  }
   renderResults(document.getElementById('results'), groups, pickFeature);
 }
 
-function cheapestParking(origin, n) {
+// Parking is special: on-street meters are grouped by block (so you don't get
+// five rows of the same street), and garages/lots get their own section.
+function buildParkingGroups(origin, { cheapest = false, note = null } = {}) {
   const feats = (app.data.parking || emptyFC()).features
     .map((f) => ({ feature: f, meters: distanceMeters(origin, f.geometry.coordinates) }))
-    .filter((x) => x.meters < 2000);
-  feats.sort((a, b) => {
-    const pa = priceNum(a.feature.properties.rate);
-    const pb = priceNum(b.feature.properties.rate);
-    if (pa !== pb) return pa - pb;
-    return a.meters - b.meters;
+    .filter((x) => x.meters < 1800);
+
+  const meters = feats.filter((x) => x.feature.properties.kind === 'meter');
+  const structured = feats.filter((x) => x.feature.properties.kind !== 'meter');
+
+  // Group meters by block (their street name); keep the nearest meter + a count.
+  const byBlock = new Map();
+  for (const m of meters) {
+    const key = m.feature.properties.name || 'Metered parking';
+    const g = byBlock.get(key) || { name: key, items: [], rate: null };
+    g.items.push(m);
+    if (!g.rate && m.feature.properties.rate) g.rate = m.feature.properties.rate; // only real, sourced rates
+    byBlock.set(key, g);
+  }
+  const blocks = [...byBlock.values()].map((g) => {
+    const near = g.items.reduce((a, b) => (a.meters < b.meters ? a : b));
+    return { name: g.name, rate: g.rate, feature: near.feature, meters: near.meters, count: g.items.length };
   });
-  return feats.slice(0, n);
+  blocks.sort((a, b) => (cheapest ? priceNum(a.rate) - priceNum(b.rate) || a.meters - b.meters : a.meters - b.meters));
+
+  const blockItems = blocks.slice(0, 6).map((g) => ({
+    feature: g.feature,
+    meters: g.meters,
+    title: g.name,
+    metaHtml: `${priceHtml(g.rate)} · ${g.count} meter${g.count > 1 ? 's' : ''}`
+  }));
+
+  structured.sort((a, b) =>
+    cheapest ? priceNum(a.feature.properties.rate) - priceNum(b.feature.properties.rate) || a.meters - b.meters : a.meters - b.meters
+  );
+  const structItems = structured.slice(0, 4).map((x) => {
+    const p = x.feature.properties;
+    return { feature: x.feature, meters: x.meters, title: p.name, metaHtml: `${priceHtml(p.rate)} · ${esc(p.kind || 'lot')}` };
+  });
+
+  const groups = [
+    { layer: 'parking', label: 'Street meters (by block)', items: blockItems },
+    { layer: 'parking', label: 'Garages & lots', items: structItems }
+  ];
+  // Attach the event-day note under the first parking section that has rows.
+  if (note) {
+    const g = groups.find((x) => x.items.length);
+    if (g) g.note = note;
+  }
+  return groups;
+}
+
+// Only show a price when we have a sourced one; otherwise say so plainly.
+function priceHtml(rate) {
+  return rate ? `<span class="result__price">${esc(rate)}</span>` : '<span class="result__price">price unknown</span>';
+}
+
+// The three big event venues. If the destination is right by one, parking rates
+// posted here (from 2019) may not reflect game/concert-day pricing.
+const VENUES = [
+  { name: 'PNC Park', coord: [-80.0057, 40.4469] },
+  { name: 'Acrisure Stadium', coord: [-80.0158, 40.4468] },
+  { name: 'PPG Paints Arena', coord: [-79.9897, 40.4395] }
+];
+function eventDayNote(origin) {
+  return VENUES.some((v) => distanceMeters(origin, v.coord) < 500) ? 'Event-day rates may differ.' : null;
 }
 
 // "$1.50/hr" -> 1.5 ; "Free" -> 0 ; unknown -> big number so it sorts last.

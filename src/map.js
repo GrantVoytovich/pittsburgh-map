@@ -30,25 +30,70 @@ export function createMap(container) {
   return map;
 }
 
-// Add (or replace) a layer's data. Each layer draws as a soft "glow" circle
-// under a crisp white-ringed dot, which reads as a modern, legible pin cloud.
+// All the on-map layer ids that belong to one data layer, so we can toggle or
+// check them together.
+function layerPartIds(layerId) {
+  return [`clusters-${layerId}`, `cluster-count-${layerId}`, `glow-${layerId}`, `lyr-${layerId}`];
+}
+
+// Add (or replace) a layer's data. The GeoJSON source is CLUSTERED: nearby
+// points merge into one numbered bubble at low zoom and split apart as you zoom
+// in (so e.g. 3,600 parking points don't blanket the city). We draw three
+// things from the one source: cluster bubbles, the number on each bubble, and
+// the individual points (a soft glow under a white-ringed dot) once they split.
 export function setLayerData(map, layerId, featureCollection) {
   const def = layerById[layerId];
   const srcId = `src-${layerId}`;
-  const glowId = `glow-${layerId}`;
-  const dotId = `lyr-${layerId}`;
 
   if (map.getSource(srcId)) {
     map.getSource(srcId).setData(featureCollection);
     return;
   }
 
-  map.addSource(srcId, { type: 'geojson', data: featureCollection });
+  map.addSource(srcId, {
+    type: 'geojson',
+    data: featureCollection,
+    cluster: true,
+    clusterRadius: 55,
+    clusterMaxZoom: 16
+  });
 
+  // Cluster bubble: size grows in steps with how many points it contains.
   map.addLayer({
-    id: glowId,
+    id: `clusters-${layerId}`,
     type: 'circle',
     source: srcId,
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-color': def.color,
+      'circle-opacity': 0.9,
+      'circle-radius': ['step', ['get', 'point_count'], 14, 25, 18, 100, 23, 500, 30],
+      'circle-stroke-width': 2.5,
+      'circle-stroke-color': '#ffffff'
+    }
+  });
+
+  // The count drawn on each bubble.
+  map.addLayer({
+    id: `cluster-count-${layerId}`,
+    type: 'symbol',
+    source: srcId,
+    filter: ['has', 'point_count'],
+    layout: {
+      'text-field': ['get', 'point_count_abbreviated'],
+      'text-font': ['Noto Sans Bold'],
+      'text-size': 12,
+      'text-allow-overlap': true
+    },
+    paint: { 'text-color': '#ffffff' }
+  });
+
+  // Individual (unclustered) points: soft glow + crisp dot.
+  map.addLayer({
+    id: `glow-${layerId}`,
+    type: 'circle',
+    source: srcId,
+    filter: ['!', ['has', 'point_count']],
     paint: {
       'circle-color': def.color,
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 5, 14, 11, 16, 16],
@@ -56,11 +101,11 @@ export function setLayerData(map, layerId, featureCollection) {
       'circle-opacity': 0.22
     }
   });
-
   map.addLayer({
-    id: dotId,
+    id: `lyr-${layerId}`,
     type: 'circle',
     source: srcId,
+    filter: ['!', ['has', 'point_count']],
     paint: {
       'circle-color': def.color,
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 3.4, 14, 6, 16, 8.5],
@@ -70,17 +115,30 @@ export function setLayerData(map, layerId, featureCollection) {
     }
   });
 
-  map.on('click', dotId, (e) => {
+  // Click a cluster -> zoom in to split it.
+  map.on('click', `clusters-${layerId}`, async (e) => {
+    const f = e.features[0];
+    try {
+      const zoom = await map.getSource(srcId).getClusterExpansionZoom(f.properties.cluster_id);
+      map.easeTo({ center: f.geometry.coordinates, zoom });
+    } catch {
+      map.easeTo({ center: f.geometry.coordinates, zoom: map.getZoom() + 2 });
+    }
+  });
+  // Click an individual point -> details popup.
+  map.on('click', `lyr-${layerId}`, (e) => {
     const f = e.features[0];
     openFeaturePopup(map, layerId, f.properties, f.geometry.coordinates);
   });
-  map.on('mouseenter', dotId, () => (map.getCanvas().style.cursor = 'pointer'));
-  map.on('mouseleave', dotId, () => (map.getCanvas().style.cursor = ''));
+  for (const id of [`clusters-${layerId}`, `lyr-${layerId}`]) {
+    map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'));
+    map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''));
+  }
 }
 
 export function setLayerVisible(map, layerId, visible) {
   const v = visible ? 'visible' : 'none';
-  for (const id of [`glow-${layerId}`, `lyr-${layerId}`]) {
+  for (const id of layerPartIds(layerId)) {
     if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v);
   }
 }
