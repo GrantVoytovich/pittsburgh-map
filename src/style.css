@@ -149,8 +149,14 @@ h1, h2, h3 { font-family: 'Space Grotesk', 'Inter', sans-serif; margin: 0; }
 .legend__count { font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 1px; }
 .legend__live { font-size: 0.56rem; font-weight: 700; color: #fff; background: var(--bikes); padding: 1px 5px; border-radius: 999px; letter-spacing: 0.05em; margin-left: 4px; vertical-align: middle; }
 
+/* ---- Scroll region (layers + results) ----------------------------- */
+/* This is the single flexible, scrollable middle of the panel. min-height:0
+   lets it actually shrink inside the flex column so the brand, search and
+   footer stay pinned and visible at any window height or browser zoom. */
+.panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
 /* ---- Results ------------------------------------------------------ */
-.results { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+.results { padding-bottom: 8px; }
 .results__list { display: flex; flex-direction: column; gap: 7px; }
 .results__group-head { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 600; margin: 10px 2px 2px; display: flex; align-items: center; gap: 6px; }
 .result {
@@ -226,8 +232,8 @@ h1, h2, h3 { font-family: 'Space Grotesk', 'Inter', sans-serif; margin: 0; }
 #toast.show { opacity: 1; transform: translateY(0); }
 
 /* ---- Scrollbars --------------------------------------------------- */
-.results::-webkit-scrollbar, .dialog__body::-webkit-scrollbar { width: 8px; }
-.results::-webkit-scrollbar-thumb, .dialog__body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; }
+.panel__scroll::-webkit-scrollbar, .dialog__body::-webkit-scrollbar { width: 8px; }
+.panel__scroll::-webkit-scrollbar-thumb, .dialog__body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; }
 
 /* ---- Phone: panel becomes a bottom sheet -------------------------- */
 @media (max-width: 760px) {
